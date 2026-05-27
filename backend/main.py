@@ -4,6 +4,7 @@ import pandas as pd
 from typing import List
 from fastapi import FastAPI, UploadFile, File, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from backend.utils.preprocessing import extract_dma_name, detect_columns, load_and_merge_datasets
 from backend.utils.forecasting import train_and_forecast
@@ -43,8 +44,8 @@ def startup_event():
     except Exception as e:
         print(f"Error on startup merge: {e}")
 
-@app.get("/")
-def read_root():
+@app.get("/health")
+def read_health():
     return {
         "status": "online",
         "system": "Smart Water Forecasting System API",
@@ -330,3 +331,7 @@ def delete_current_file(filename: str = Query(...)):
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Define frontend path and mount it to serve static files from the root
+FRONTEND_FOLDER = os.path.join(os.path.dirname(BASE_DIR), "frontend")
+app.mount("/", StaticFiles(directory=FRONTEND_FOLDER, html=True), name="frontend")

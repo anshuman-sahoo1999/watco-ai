@@ -1,27 +1,26 @@
-# Use a lightweight python runtime
 FROM python:3.11-slim
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PORT=7860
-
-# Set working directory
-WORKDIR /app
-
-# Install build dependencies (needed for compiling some C extensions if necessary)
+# Install system build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only requirements first to leverage Docker cache
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Create user with UID 1000 for Hugging Face Spaces compatibility
+RUN useradd -m -u 1000 user
+USER user
+ENV PATH="/home/user/.local/bin:$PATH"
 
-# Copy the entire project code into the container
-COPY . .
+WORKDIR /app
 
-# Expose port (7860 is the standard port for Hugging Face Spaces)
+# Copy and install python dependencies
+COPY --chown=user backend/requirements.txt requirements.txt
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
+
+# Copy the application source code
+COPY --chown=user . /app
+
+# Expose the mandatory Hugging Face Space port
 EXPOSE 7860
 
-# Run FastAPI backend using uvicorn
+# Run FastAPI serving frontend and backend
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "7860"]

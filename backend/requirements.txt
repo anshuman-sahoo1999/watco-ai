@@ -6,3 +6,4 @@ scikit-learn
 xgboost
 python-multipart
 joblib
+aiofiles
