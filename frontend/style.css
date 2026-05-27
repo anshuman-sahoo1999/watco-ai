@@ -302,6 +302,7 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 25px;
+    margin-bottom: 30px;
 }
 
 .upload-card {
@@ -468,6 +469,7 @@ body {
     align-items: center;
     gap: 20px;
     padding: 20px 30px;
+    margin-bottom: 30px;
 }
 
 .filter-group {
