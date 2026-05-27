@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AQUAI SCADA - Smart Water Analytics & Demand Forecasting Dashboard</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js and Plugins (Zoom & Pan) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    
+    <!-- MathJax for rendering equations in Documentation tab -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background grid & glow details -->
+    <div class="grid-overlay"></div>
+    <div class="glow-sphere sphere-blue"></div>
+    <div class="glow-sphere sphere-purple"></div>
+    <div class="glow-sphere sphere-cyan"></div>
+
+    <!-- Main SCADA Layout Container -->
+    <div class="app-layout">
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="main-content">
+            
+            <!-- HEADER / TOP NAV BAR -->
+            <header class="dashboard-header govt-header">
+                <div class="header-brand-container">
+                    <div class="gov-logos">
+                        <img src="../odisha-govt.png" alt="Odisha Government Logo" class="gov-logo">
+                        <div class="gov-divider"></div>
+                        <img src="../WATCO.png" alt="WATCO Logo" class="watco-logo">
+                    </div>
+                    <div class="gov-titles">
+                        <h1 class="gov-title">Water Demand Forecasting Application</h1>
+                        <p class="gov-subtitle">Designed & Developed by Water Corporation of Odisha (WATCO)</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <!-- Hidden status elements to ensure app.js doesn't throw null errors -->
+                    <div style="display: none;">
+                        <span class="status-indicator-dot"></span>
+                        <div id="apiStatusText"></div>
+                    </div>
+                    <button class="btn btn-secondary govt-btn" id="viewToggleBtn" onclick="toggleView()"><i class="fa-solid fa-book"></i> Documentation</button>
+                    <div class="time-widget govt-time">
+                        <i class="fa-solid fa-clock"></i>
+                        <span id="liveClock">00:00:00 AM</span>
+                    </div>
+                    <button class="btn btn-secondary govt-btn" onclick="resetSystemData()"><i class="fa-solid fa-arrow-rotate-left"></i> Reset Core</button>
+                </div>
+            </header>
+
+            <!-- DASHBOARD SECTION CONTAINER -->
+            <div id="dashboardView">
+
+            <!-- UPLOAD PANEL GRID -->
+            <section class="upload-grid">
+                
+                <!-- HISTORICAL UPLOAD -->
+                <div class="upload-card glass drag-zone" id="historicalDropZone">
+                    <div class="card-glow"></div>
+                    <div class="upload-content">
+                        <div class="upload-icon-wrapper">
+                            <i class="fa-solid fa-file-csv icon-csv"></i>
+                            <i class="fa-solid fa-database icon-db"></i>
+                        </div>
+                        <h3>Historical SCADA Datasets</h3>
+                        <p class="upload-instructions">Drag & drop multiple historical daily logs here or <span>browse files</span></p>
+                        <input type="file" id="historicalInput" multiple accept=".csv" style="display: none;">
+                        <div class="file-list" id="historicalFileList"></div>
+                        <button class="btn btn-primary" onclick="uploadHistoricalData()"><i class="fa-solid fa-upload"></i> Process History</button>
+                        <div class="stored-files-section">
+                            <h4>Stored Historical Files:</h4>
+                            <div class="stored-file-list" id="storedHistoricalList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CURRENT UPLOAD -->
+                <div class="upload-card glass drag-zone" id="currentDropZone">
+                    <div class="card-glow"></div>
+                    <div class="upload-content">
+                        <div class="upload-icon-wrapper">
+                            <i class="fa-solid fa-bolt-lightning icon-lightning"></i>
+                        </div>
+                        <h3>Today's Operational Log</h3>
+                        <p class="upload-instructions">Drag & drop today's partial CSV file here or <span>browse file</span></p>
+                        <input type="file" id="currentInput" accept=".csv" style="display: none;">
+                        <div class="file-list" id="currentFileList"></div>
+                        <button class="btn btn-accent" onclick="uploadCurrentData()"><i class="fa-solid fa-bolt"></i> Ingest Current Log</button>
+                        <div class="stored-files-section">
+                            <h4>Stored Today Log:</h4>
+                            <div class="stored-file-list" id="storedCurrentList"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- FILTER BAR -->
+            <section class="filter-bar glass">
+                <div class="filter-group">
+                    <label for="dmaSelect"><i class="fa-solid fa-network-wired"></i> Target DMA</label>
+                    <select id="dmaSelect" onchange="onDmaChanged()">
+                        <option value="">Scanning...</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="subdmaSelect"><i class="fa-solid fa-circle-nodes"></i> Sub-DMA Zone</label>
+                    <select id="subdmaSelect" onchange="triggerUpdate()">
+                        <option value="Overall">Overall DMA Demand</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="forecastTypeSelect"><i class="fa-solid fa-clock-rotate-left"></i> Forecast Horizon</label>
+                    <select id="forecastTypeSelect" disabled>
+                        <option value="hourly">Hourly Sequential (XGBoost)</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary refresh-btn" onclick="triggerUpdate()"><i class="fa-solid fa-arrows-rotate"></i> Refresh Analytics</button>
+            </section>
+
+            <!-- KPI STATUS CARDS -->
+            <section class="kpi-grid">
+                
+                <!-- CARD 1: FORECAST STATUS -->
+                <div class="kpi-card glass animate-glow">
+                    <div class="kpi-header">
+                        <span>Forecast Status</span>
+                        <i class="fa-solid fa-chart-line kpi-icon text-cyan"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <h2 id="kpiForecastStatus">Inactive</h2>
+                        <p id="kpiForecastStatusDesc" class="kpi-desc">Upload files to begin AI modeling.</p>
+                    </div>
+                </div>
+
+                <!-- CARD 2: FORECAST HOURS -->
+                <div class="kpi-card glass animate-glow">
+                    <div class="kpi-header">
+                        <span>Forecast Horizon</span>
+                        <i class="fa-solid fa-hourglass-half kpi-icon text-purple"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <h2 id="kpiForecastHours">N/A</h2>
+                        <p id="kpiForecastHoursDesc" class="kpi-desc">Predicted remaining hours.</p>
+                    </div>
+                </div>
+
+                <!-- CARD 3: AI CONFIDENCE -->
+                <div class="kpi-card glass animate-glow">
+                    <div class="kpi-header">
+                        <span>AI R² Confidence</span>
+                        <i class="fa-solid fa-brain kpi-icon text-green"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <h2 id="kpiConfidence">N/A</h2>
+                        <p id="kpiConfidenceDesc" class="kpi-desc">Model performance rating.</p>
+                    </div>
+                </div>
+
+                <!-- CARD 4: PREDICTION MODE -->
+                <div class="kpi-card glass animate-glow">
+                    <div class="kpi-header">
+                        <span>Prediction Mode</span>
+                        <i class="fa-solid fa-gears kpi-icon text-orange"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <h2 id="kpiPredictionMode">N/A</h2>
+                        <p id="kpiPredictionModeDesc" class="kpi-desc">Auto-regressive lag modeling.</p>
+                    </div>
+                </div>
+
+                <!-- CARD 5: TOTAL DELIVERY -->
+                <div class="kpi-card glass animate-glow">
+                    <div class="kpi-header">
+                        <span>Daily Delivery (Today)</span>
+                        <i class="fa-solid fa-droplet kpi-icon text-blue"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <h2 id="kpiTotalDelivery">0.0 m³</h2>
+                        <p id="kpiTotalDeliveryDesc" class="kpi-desc">Actual + forecasted sum today.</p>
+                    </div>
+                </div>
+
+                <!-- CARD 6: PEAK DEMAND -->
+                <div class="kpi-card glass animate-glow">
+                    <div class="kpi-header">
+                        <span>Peak Hourly Demand</span>
+                        <i class="fa-solid fa-fire kpi-icon text-red"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <h2 id="kpiPeakDemand">0.0 m³/h</h2>
+                        <p id="kpiPeakDemandDesc" class="kpi-desc">Highest flow rate observed/predicted.</p>
+                    </div>
+                </div>
+
+                <!-- CARD 7: PRESSURE STATUS -->
+                <div class="kpi-card glass animate-glow" id="pressureCard">
+                    <div class="kpi-header">
+                        <span>SCADA System Pressure</span>
+                        <i class="fa-solid fa-gauge-high kpi-icon" id="pressureIcon"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <h2 id="kpiPressure">0.0 bar</h2>
+                        <p id="kpiPressureDesc" class="kpi-desc">Average network pressure.</p>
+                    </div>
+                </div>
+
+                <!-- CARD 8: DISINFECTION CHLORINE -->
+                <div class="kpi-card glass animate-glow" id="chlorineCard">
+                    <div class="kpi-header">
+                        <span>Chlorine Disinfection</span>
+                        <i class="fa-solid fa-flask kpi-icon" id="chlorineIcon"></i>
+                    </div>
+                    <div class="kpi-body">
+                        <h2 id="kpiChlorine">0.00 ppm</h2>
+                        <p id="kpiChlorineDesc" class="kpi-desc">Residual free chlorine level.</p>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- VISUALIZATION BLOCK -->
+            <section class="charts-section">
+                
+                <!-- COLUMN 1: MAIN FORECAST OVERLAY -->
+                <div class="chart-box main-chart-box glass">
+                    <div class="chart-title-area">
+                        <div>
+                            <h2>Real-Time Demand Forecast & Envelope Overlay</h2>
+                            <p class="chart-subtitle">Today's actual SCADA ingestion, XGBoost forecast, and historical min-max envelopes</p>
+                        </div>
+                        <div class="chart-actions">
+                            <span class="legend-indicator"><span class="legend-color envelope-color"></span> Hist. Range</span>
+                            <span class="legend-indicator"><span class="legend-color actuals-color"></span> Today's Actuals</span>
+                            <span class="legend-indicator"><span class="legend-color forecast-color"></span> AI Forecast</span>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="forecastOverlayChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- ROW 2: SIDE-BY-SIDE CHARTS -->
+                <div class="charts-row">
+                    
+                    <!-- PIE CHART: SUB-DMA CONTRIBUTION -->
+                    <div class="chart-box sub-chart-box glass">
+                        <div class="chart-title-area">
+                            <h2>Zone Consumption Contribution</h2>
+                            <p class="chart-subtitle">Relative distribution of water flow across Sub-DMA channels</p>
+                        </div>
+                        <div class="chart-canvas-container compact">
+                            <canvas id="subDmaContributionChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- TREND DETAIL: DEDICATED prediction curve -->
+                    <div class="chart-box sub-chart-box glass">
+                        <div class="chart-title-area">
+                            <h2>Remaining Hours Forecast Trend</h2>
+                            <p class="chart-subtitle">Detailed forecasting curve for remaining operational hours</p>
+                        </div>
+                        <div class="chart-canvas-container compact">
+                            <canvas id="forecastTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div> <!-- End of #dashboardView -->
+
+            <!-- DOCUMENTATION SECTION CONTAINER -->
+            <div id="documentationView" style="display: none;" class="docs-container glass">
+                <h2>System Mathematical & ML Model Core Documentation</h2>
+                <p>This portal section details the time-series forecasting math, feature engineering formulas, and chemical/hydraulic calculations running on the SCADA backend.</p>
+                
+                <h3>1. Feature Ingestion & Lag Formulation</h3>
+                <p>Water consumption is highly autocorrelated and follows strong daily patterns. The system engineers inputs dynamically from raw SCADA flow metrics:</p>
+                <ul>
+                    <li><strong>Lags</strong>: Telemetry observations at past steps:
+                        <div class="docs-math-block">$$\text{Lag}_k(t) = y(t - k)$$</div>
+                        We use immediate lags (<strong>\(\text{Lag}_1\)</strong>, <strong>\(\text{Lag}_2\)</strong>) to capture flow momentum, and a 24-hour seasonal lag (<strong>\(\text{Lag}_{24}\)</strong>) to capture yesterday's corresponding flow baseline.
+                    </li>
+                    <li><strong>Rolling Windows</strong>: Smoothed historical values computed on a shifted window to prevent data leakage:
+                        <div class="docs-math-block">$$\text{Rolling Mean}_w(t) = \frac{1}{w} \sum_{i=1}^{w} y(t - i)$$</div>
+                        $$\text{Rolling Std}_w(t) = \sqrt{\frac{1}{w-1} \sum_{i=1}^{w} (y(t - i) - \text{Rolling Mean}_w(t))^2}$$
+                        We calculate a 3-hour window (\(w=3\)) to model flow baseline trends and short-term volatility.
+                    </li>
+                </ul>
+
+                <h3>2. Machine Learning Model: XGBoost Regressor</h3>
+                <p>The system utilizes an Extreme Gradient Boosting (XGBoost) model consisting of regularized decision trees. At boosting step \(m\), a new decision tree \(f_m(x)\) is trained to minimize the objective function:</p>
+                <div class="docs-math-block">$$\mathcal{L}^{(m)} = \sum_{i=1}^{N} L(y_i, \hat{y}_i^{(m-1)} + f_m(x_i)) + \Omega(f_m)$$</div>
+                <p>Where \(\Omega(f_m)\) is the complexity regularization penalty:</p>
+                <div class="docs-math-block">$$\Omega(f) = \gamma T + \frac{1}{2} \lambda \sum_{j=1}^{T} w_j^2$$</div>
+                <p>Using a second-order Taylor expansion approximation for Mean Squared Error (MSE), leaf weights are optimized as:</p>
+                <div class="docs-math-block">$$w_j^* = -\frac{\sum_{i \in I_j} (\hat{y}_i^{(m-1)} - y_i)}{|I_j| + \lambda}$$</div>
+
+                <h3>3. Sequential Autoregressive Multi-Step Forecasting</h3>
+                <p>Predicting the future hours (e.g. 15:00 → 23:00) sequentially requires updating input lags autoregressively:</p>
+                <div class="docs-info-block">
+                    <strong>Recursive Loop Algorithm:</strong><br>
+                    For each hour \(t\) from \(t_{\text{cutoff}} + 1\) to \(23\):
+                    <ol>
+                        <li>Project future pressure \(P(t)\) and reservoir level \(L(t)\) from historical averages at hour \(t\).</li>
+                        <li>Assemble feature vector \(X(t) = [\text{hour}(t), \text{weekday}(t), \hat{y}(t-1), \hat{y}(t-2), y(t-24), \text{Rolling Mean}_3(t), P_{\text{proj}}(t), L_{\text{proj}}(t)]\).</li>
+                        <li>Predict \(\hat{y}(t) = \text{XGBoost}(X(t))\).</li>
+                        <li>Apply non-negative check: \(\hat{y}(t) = \max(0, \hat{y}(t))\) and write the value back into the timeline as an input for step \(t+1\).</li>
+                    </ol>
+                </div>
+
+                <h3>4. Water Domain Physical Calculations</h3>
+                <ul>
+                    <li><strong>Volumetric Flow Accumulation</strong>: Approximated using a Riemann sum with hourly intervals (\(\Delta t = 1\) hr):
+                        <div class="docs-math-block">$$V = \int_{t_0}^{t_1} Q(t) \, dt \approx \sum_{t=t_0}^{t_1} Q(t) \cdot \Delta t \quad [\text{m}^3]$$</div>
+                    </li>
+                    <li><strong>Residual Chlorine Decay (First-Order Kinetics)</strong>: Residual chemical disinfection drops in pipes due to bulk decay reaction kinetics:
+                        <div class="docs-math-block">$$C(t) = C_0 \cdot e^{-k_b \cdot \Delta t} \quad [\text{ppm}]$$</div>
+                        Disinfection warning alert checks are fired if levels exit the safe range (\(0.2 \text{ ppm} \le C(t) \le 2.0 \text{ ppm}\)).
+                    </li>
+                    <li><strong>Pipe Friction Head Loss (Hazen-Williams)</strong>: Pressure drop in distribution lines is modeled by:
+                        <div class="docs-math-block">$$h_f = 10.67 \cdot L \cdot Q^{1.852} \cdot C_H^{-1.852} \cdot D^{-4.87} \quad [\text{meters of head}]$$</div>
+                    </li>
+                </ul>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Alert toast notification -->
+    <div id="toast" class="toast glass">
+        <i class="fa-solid fa-circle-info toast-icon"></i>
+        <span id="toastMessage">System notifications active.</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
