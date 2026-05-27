@@ -16,6 +16,14 @@ let currentFile = null;
 // CORE INITIALIZATION
 // ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
+    // Check saved theme preference
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        const themeBtnIcon = document.querySelector('#themeToggleBtn i');
+        if (themeBtnIcon) themeBtnIcon.className = 'fa-solid fa-sun';
+    }
+
     // Start Live Clock
     startLiveClock();
     
@@ -412,6 +420,7 @@ function updateKpiDashboard(kpis) {
 // Chart 1: Actuals, Predicted overlay on Min-Max Historical Envelopes
 function renderOverlayChart(data) {
     const ctx = document.getElementById("forecastOverlayChart").getContext("2d");
+    const theme = getChartThemeSettings();
     
     if (overlayChart) {
         overlayChart.destroy();
@@ -523,9 +532,11 @@ function renderOverlayChart(data) {
                     display: false // We use our own customized header legend
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    backgroundColor: theme.tooltipBg,
+                    borderColor: theme.tooltipBorder,
                     borderWidth: 1,
+                    bodyColor: theme.tooltipBodyColor,
+                    titleColor: theme.tooltipBodyColor,
                     titleFont: { family: 'Orbitron', size: 13 },
                     bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
                     callbacks: {
@@ -561,21 +572,21 @@ function renderOverlayChart(data) {
             scales: {
                 x: {
                     grid: {
-                        color: 'rgba(255, 255, 255, 0.05)',
-                        borderColor: 'rgba(255, 255, 255, 0.1)'
+                        color: theme.gridColor,
+                        borderColor: theme.tooltipBorder
                     },
                     ticks: {
-                        color: '#9ca3af',
+                        color: theme.tickColor,
                         font: { family: 'Orbitron', size: 10 }
                     }
                 },
                 y: {
                     grid: {
-                        color: 'rgba(255, 255, 255, 0.05)',
-                        borderColor: 'rgba(255, 255, 255, 0.1)'
+                        color: theme.gridColor,
+                        borderColor: theme.tooltipBorder
                     },
                     ticks: {
-                        color: '#9ca3af',
+                        color: theme.tickColor,
                         font: { family: 'Plus Jakarta Sans', size: 11 },
                         callback: function(value) {
                             return value + ' m³';
@@ -590,6 +601,7 @@ function renderOverlayChart(data) {
 // Chart 2: Sub-DMA Contribution rates (Pie Chart)
 function renderContributionChart(subdmaContribs) {
     const ctx = document.getElementById("subDmaContributionChart").getContext("2d");
+    const theme = getChartThemeSettings();
     
     if (contributionChart) {
         contributionChart.destroy();
@@ -631,16 +643,17 @@ function renderContributionChart(subdmaContribs) {
                 legend: {
                     position: 'right',
                     labels: {
-                        color: '#f3f4f6',
+                        color: theme.legendColor,
                         font: { family: 'Plus Jakarta Sans', size: 11 },
                         padding: 15,
                         usePointStyle: true
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    backgroundColor: theme.tooltipBg,
+                    borderColor: theme.tooltipBorder,
                     borderWidth: 1,
+                    bodyColor: theme.tooltipBodyColor,
                     bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
                     callbacks: {
                         label: function(context) {
@@ -656,6 +669,7 @@ function renderContributionChart(subdmaContribs) {
 // Chart 3: Detailed Forecast trend showing remaining hours prediction
 function renderTrendChart(forecastData) {
     const ctx = document.getElementById("forecastTrendChart").getContext("2d");
+    const theme = getChartThemeSettings();
     
     if (trendChart) {
         trendChart.destroy();
@@ -712,9 +726,11 @@ function renderTrendChart(forecastData) {
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    backgroundColor: theme.tooltipBg,
+                    borderColor: theme.tooltipBorder,
                     borderWidth: 1,
+                    bodyColor: theme.tooltipBodyColor,
+                    titleColor: theme.tooltipBodyColor,
                     titleFont: { family: 'Orbitron', size: 12 },
                     bodyFont: { family: 'Plus Jakarta Sans', size: 11 },
                     callbacks: {
@@ -730,21 +746,21 @@ function renderTrendChart(forecastData) {
             scales: {
                 x: {
                     grid: {
-                        color: 'rgba(255, 255, 255, 0.03)',
-                        borderColor: 'rgba(255, 255, 255, 0.08)'
+                        color: theme.gridColor,
+                        borderColor: theme.tooltipBorder
                     },
                     ticks: {
-                        color: '#9ca3af',
+                        color: theme.tickColor,
                         font: { family: 'Orbitron', size: 9 }
                     }
                 },
                 y: {
                     grid: {
-                        color: 'rgba(255, 255, 255, 0.03)',
-                        borderColor: 'rgba(255, 255, 255, 0.08)'
+                        color: theme.gridColor,
+                        borderColor: theme.tooltipBorder
                     },
                     ticks: {
-                        color: '#9ca3af',
+                        color: theme.tickColor,
                         font: { family: 'Plus Jakarta Sans', size: 10 }
                     }
                 }
@@ -948,5 +964,77 @@ function toggleView() {
         if (window.MathJax && window.MathJax.typesetPromise) {
             window.MathJax.typesetPromise();
         }
+    }
+}
+
+// ==========================================================================
+// LIGHT & DARK THEME TOGGLE HANDLERS
+// ==========================================================================
+function toggleTheme() {
+    const body = document.body;
+    body.classList.toggle('light-theme');
+    
+    // Update theme button icon
+    const themeBtnIcon = document.querySelector('#themeToggleBtn i');
+    if (body.classList.contains('light-theme')) {
+        if (themeBtnIcon) themeBtnIcon.className = 'fa-solid fa-sun';
+        localStorage.setItem('theme', 'light');
+    } else {
+        if (themeBtnIcon) themeBtnIcon.className = 'fa-solid fa-moon';
+        localStorage.setItem('theme', 'dark');
+    }
+    
+    // Update charts theme
+    updateChartsTheme();
+}
+
+function getChartThemeSettings() {
+    const isLight = document.body.classList.contains('light-theme');
+    return {
+        gridColor: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.05)',
+        tickColor: isLight ? '#475569' : '#9ca3af',
+        legendColor: isLight ? '#0f172a' : '#f3f4f6',
+        tooltipBg: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(17, 24, 39, 0.95)',
+        tooltipBorder: isLight ? 'rgba(15, 23, 42, 0.1)' : 'rgba(255, 255, 255, 0.1)',
+        tooltipBodyColor: isLight ? '#0f172a' : '#f3f4f6'
+    };
+}
+
+function updateChartsTheme() {
+    const theme = getChartThemeSettings();
+
+    // 1. Overlay Chart Updates
+    if (overlayChart) {
+        overlayChart.options.scales.x.grid.color = theme.gridColor;
+        overlayChart.options.scales.x.ticks.color = theme.tickColor;
+        overlayChart.options.scales.y.grid.color = theme.gridColor;
+        overlayChart.options.scales.y.ticks.color = theme.tickColor;
+        overlayChart.options.plugins.tooltip.backgroundColor = theme.tooltipBg;
+        overlayChart.options.plugins.tooltip.borderColor = theme.tooltipBorder;
+        overlayChart.options.plugins.tooltip.bodyColor = theme.tooltipBodyColor;
+        overlayChart.options.plugins.tooltip.titleColor = theme.tooltipBodyColor;
+        overlayChart.update();
+    }
+    
+    // 2. Contribution Chart Updates (Pie Chart)
+    if (contributionChart) {
+        contributionChart.options.plugins.legend.labels.color = theme.legendColor;
+        contributionChart.options.plugins.tooltip.backgroundColor = theme.tooltipBg;
+        contributionChart.options.plugins.tooltip.borderColor = theme.tooltipBorder;
+        contributionChart.options.plugins.tooltip.bodyColor = theme.tooltipBodyColor;
+        contributionChart.update();
+    }
+    
+    // 3. Trend Chart Updates
+    if (trendChart) {
+        trendChart.options.scales.x.grid.color = theme.gridColor;
+        trendChart.options.scales.x.ticks.color = theme.tickColor;
+        trendChart.options.scales.y.grid.color = theme.gridColor;
+        trendChart.options.scales.y.ticks.color = theme.tickColor;
+        trendChart.options.plugins.tooltip.backgroundColor = theme.tooltipBg;
+        trendChart.options.plugins.tooltip.borderColor = theme.tooltipBorder;
+        trendChart.options.plugins.tooltip.bodyColor = theme.tooltipBodyColor;
+        trendChart.options.plugins.tooltip.titleColor = theme.tooltipBodyColor;
+        trendChart.update();
     }
 }
